@@ -1,0 +1,6 @@
+###LOCAL###
+/.env
+
+/pyvenv.cfg
+
+/.venv
