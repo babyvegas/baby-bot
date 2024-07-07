@@ -36,24 +36,26 @@ def run_bot():
     @client.command(name="play")
     async def play(ctx, *, link):
         try:
-            voice_client = await ctx.author.voice.channel.connect()
-            voice_clients[voice_client.guild.id] = voice_client
+            if ctx.guild.id in voice_clients:
+                voice_client = voice_clients[ctx.guild.id]
+            else:
+                voice_client = await ctx.author.voice.channel.connect()
+                voice_clients[voice_client.guild.id] = voice_client
+
         except Exception as e:
-            print(e)
+            await ctx.send('Debes estar en un canal de voz para utilizar ese comando')
+            print(f"Error al conectar al canal de voz: {e}")
+            return
 
         try:
-
             if youtube_base_url not in link:
                 query_string = urllib.parse.urlencode({
                     'search_query': link
                 })
-
                 content = urllib.request.urlopen(
                     youtube_results_url + query_string
                 )
-
                 search_results = re.findall(r'/watch\?v=(.{11})', content.read().decode())
-
                 link = youtube_watch_url + search_results[0]
 
             loop = asyncio.get_event_loop()
@@ -64,7 +66,10 @@ def run_bot():
 
             voice_clients[ctx.guild.id].play(player, after=lambda e: asyncio.run_coroutine_threadsafe(play_next(ctx), client.loop))
         except Exception as e:
-            print(e)
+            await ctx.send('Ocurrió un error al reproducir la canción.')
+            print(f"Error al reproducir la canción: {e}")
+
+
 
     @client.command(name="clear_queue")
     async def clear_queue(ctx):
@@ -84,10 +89,20 @@ def run_bot():
     @client.command(name="skip")
     async def skip(ctx):
         try:
-            voice_clients[ctx.guild.id].stop()
-            await play_next(ctx)
+            if ctx.guild.id in voice_clients:
+                voice_client = voice_clients[ctx.guild.id]
+                if voice_client.is_playing():
+                    voice_client.stop()
+                    await play_next(ctx)
+                else:
+                    await ctx.send("No hay ninguna canción reproduciéndose actualmente.")
+            else:
+                await ctx.send("No hay ningún voice client asociado a este servidor.")
         except Exception as e:
-            print(e)
+            await ctx.send("Ocurrió un error al intentar saltar la canción.")
+            print(f"Error al intentar saltar la canción: {e}")
+
+
 
     @client.command(name="resume")
     async def resume(ctx):
